@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -12,29 +12,29 @@ body{
   min-height:100vh;
   background:url("laptop.png") center/cover no-repeat;
 }
-
 @media(max-width:768px){
-  body{
-    background:url("mobile.png") center/cover no-repeat;
-  }
+  body{ background:url("mobile.png") center/cover no-repeat; }
 }
 
-/* FIX: use flex instead of absolute (mobile safe) */
-.page{
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:10px;
-  box-sizing:border-box;
-}
-
+/* Desktop center */
 .container{
-  width:100%;
   max-width:360px;
   background:#fff;
   border:1px solid #000;
   padding:10px;
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+}
+
+/* Mobile fix – keep search visible */
+@media(max-width:768px){
+  .container{
+    position:relative;
+    top:auto;left:auto;
+    transform:none;
+    margin:20px auto;
+  }
 }
 
 select,input,button{
@@ -48,19 +48,15 @@ select,input,button{
   border-top:1px dashed #000;
   margin-top:8px;
   padding-top:6px;
+  font-size:14px;
 }
 
 .select-box{
-  font-size:12px;
-  margin-bottom:6px;
-}
-
-.result-name{
-  font-weight:bold;
+  font-size:13px;
   margin-bottom:4px;
 }
 
-/* ================= PRINT (UNCHANGED – DO NOT TOUCH) ================= */
+/* ================= PRINT (UNCHANGED) ================= */
 @media print{
   @page{ size:58mm auto; margin:0; }
 
@@ -71,7 +67,6 @@ select,input,button{
     font-family:"Courier New", monospace;
   }
 
-  .page,
   .container,
   button,
   select,
@@ -83,12 +78,10 @@ select,input,button{
     width:48mm;
     margin:0 auto;
     padding:0;
-
     font-size:13px;
     font-weight:700;
     line-height:1.6;
     letter-spacing:.2px;
-
     page-break-after:always;
   }
 
@@ -119,23 +112,18 @@ select,input,button{
 
 <body>
 
-<div class="page">
-  <div class="container">
+<div class="container">
+  <select id="searchType">
+    <option value="epic_no">EPIC No</option>
+    <option value="name">Name</option>
+    <option value="house_No">House No</option>
+  </select>
 
-    <select id="searchType">
-      <option value="epic_no">EPIC No</option>
-      <option value="name">Name</option>
-      <option value="house_No">House No</option>
-    </select>
+  <input id="search" placeholder="Enter value">
+  <button onclick="find()">Search</button>
+  <button onclick="printSelected()">Print Selected</button>
 
-    <input id="search" placeholder="Enter value">
-
-    <button onclick="find()">Search</button>
-    <button onclick="printSelected()">Print Selected</button>
-
-    <div id="results"></div>
-
-  </div>
+  <div id="results"></div>
 </div>
 
 <!-- PRINT ROOT -->
@@ -143,33 +131,31 @@ select,input,button{
 
 <script>
 let voters=[];
-
 fetch("https://opensheet.elk.sh/1xfIMsplZ_b4X4VI6D0AKUK5sQnVPRPFFgOhgJZUgAMc/Sheet1!A1:Z")
 .then(r=>r.json())
 .then(d=>voters=d);
 
-/* safer normalize (fixes name / epic search) */
+/* Normalization */
 const norm=v=>String(v||"")
-  .trim()
   .toUpperCase()
-  .replace(/\s+/g,"");
+  .replace(/\s+/g,"")
+  .trim();
 
 function find(){
-  const type=document.getElementById("searchType").value;
-  const input=norm(document.getElementById("search").value);
-  const results=document.getElementById("results");
+  const t=searchType.value;
+  const i=norm(search.value);
+  const res=document.getElementById("results");
+  res.innerHTML="";
 
-  results.innerHTML="";
-
-  if(!input){
-    results.innerHTML="<b>Please enter a value</b>";
+  if(!i){
+    res.innerHTML="<b>Please enter a value</b>";
     return;
   }
 
-  const matches=voters.filter(v=>norm(v[type]).includes(input));
+  const matches=voters.filter(v=>norm(v[t]).includes(i));
 
   if(!matches.length){
-    results.innerHTML="<b>No record found</b>";
+    res.innerHTML="<b>No record found</b>";
     return;
   }
 
@@ -178,21 +164,16 @@ function find(){
     d.className="result-card";
     d.innerHTML=`
       <label class="select-box">
-        <input type="checkbox" class="chk" data='${JSON.stringify(v)}'>
-        Select
+        <input type="checkbox" class="chk"> 
+        <b>${v.name || "—"}</b> (${v.epic_no || "—"})
       </label>
-
-      <div class="result-name">
-        ${v.name || ""} (${v.epic_no || ""})
-      </div>
-
       <button onclick='printOne(${JSON.stringify(v)})'>Print</button>
     `;
-    results.appendChild(d);
+    d.querySelector(".chk").dataset.voter=JSON.stringify(v);
+    res.appendChild(d);
   });
 }
 
-/* PRINT LOGIC — UNCHANGED */
 function buildSlip(v){
   return `
   <div class="print-slip">
@@ -230,7 +211,7 @@ function printOne(v){
 function printSelected(){
   let html="";
   document.querySelectorAll(".chk:checked").forEach(c=>{
-    html+=buildSlip(JSON.parse(c.dataset));
+    html+=buildSlip(JSON.parse(c.dataset.voter));
   });
   if(!html){
     alert("Please select at least one voter");
@@ -243,3 +224,4 @@ function printSelected(){
 
 </body>
 </html>
+
